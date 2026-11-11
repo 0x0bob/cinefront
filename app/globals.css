@@ -93,3 +93,8 @@ body.viewer-page { overflow: hidden; }
 .fallback p { color: var(--muted); max-width: 60ch; text-align: center; }
 .fallback video { max-width: min(100%, 900px); max-height: 70vh; border-radius: 12px; }
 @media (max-width: 600px) { .vinfo { max-width: 60vw; } .time { display: none; } .seg { flex-direction: column; } }
+
+.exp { font-style: normal; color: #e0a030; font-size: 12px; }
+.comfort { margin: 6px 0 0; padding: 6px 10px; border-left: 3px solid #e0a030; background: rgba(224, 160, 48, .12); font-size: 13px; max-width: 46ch; }
+.seg { flex-wrap: wrap; }
+.seg label { min-width: 210px; }

@@ -41,3 +41,17 @@ export function sameOrigin(req: Request): boolean {
     return false;
   }
 }
+
+/** wrap a route handler: a missing / unreachable store -> 503 with a clear message; anything else -> 500 without details (logged on the server) */
+export function safe<A extends unknown[]>(fn: (...a: A) => Promise<Response>): (...a: A) => Promise<Response> {
+  return async (...a: A) => {
+    try {
+      return await fn(...a);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("handler error:", msg);
+      if (msg.startsWith("no store configured")) return fail(503, "the store is not connected yet: the site owner must connect Upstash Redis (KV_REST_API_URL / KV_REST_API_TOKEN)");
+      return fail(500, "internal error");
+    }
+  };
+}

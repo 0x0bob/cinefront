@@ -2,13 +2,14 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DURATIONS, RESOLUTIONS, estimate, type Resolution } from "@/lib/cost";
+import type { Preset } from "@/lib/jobs";
 
 const MAX = 400;
 
 export default function RequestForm({ pricePerMtoken }: { pricePerMtoken: number }) {
   const router = useRouter();
   const [prompt, setPrompt] = useState("");
-  const [preset, setPreset] = useState<"static" | "ride">("static");
+  const [preset, setPreset] = useState<Preset>("static");
   const [duration, setDuration] = useState<number>(5);
   const [resolution, setResolution] = useState<Resolution>("720p");
   const [passcode, setPasscode] = useState("");
@@ -35,19 +36,26 @@ export default function RequestForm({ pricePerMtoken }: { pricePerMtoken: number
     <form className="form card" onSubmit={submit}>
       <label>
         What should the scene show?
-        <textarea id="prompt" name="prompt" value={prompt} maxLength={MAX} required placeholder="a herd of woolly mammoths walks slowly through a snowy valley at sunset" onChange={(e) => setPrompt(e.target.value)} />
+        <textarea id="prompt" name="prompt" value={prompt} maxLength={MAX} required placeholder="a herd of woolly mammoths walks slowly toward you through a snowy valley at sunset" onChange={(e) => setPrompt(e.target.value)} />
         <span className="count">{prompt.length} / {MAX}</span>
       </label>
       <div className="seg" role="radiogroup" aria-label="Camera">
         <label>
           <input type="radio" name="preset" value="static" checked={preset === "static"} onChange={() => setPreset("static")} />
-          <span>Static<small>locked camera, the world moves</small></span>
+          <span>Static<small>The camera stays still. Anything in the scene can move.</small></span>
         </label>
         <label>
           <input type="radio" name="preset" value="ride" checked={preset === "ride"} onChange={() => setPreset("ride")} />
-          <span>Ride<small>smooth vertical lift, nothing else moves the camera</small></span>
+          <span>Ride<small>You rise smoothly, like a glass elevator.</small></span>
+        </label>
+        <label>
+          <input type="radio" name="preset" value="glide" checked={preset === "glide"} onChange={() => setPreset("glide")} />
+          <span>Glide · <em className="exp">Experimental</em><small>You drift slowly forward through the scene, like walking. No turns. May be uncomfortable for some people in VR.</small></span>
         </label>
       </div>
+      {preset === "glide" && (
+        <p className="note comfort" id="glide-note">Glide is experimental. The camera moves forward on its own, which some people find uncomfortable in a headset. Start with a short look and stop if you feel unwell. Clips that turn, speed up or move faster than walking pace are rejected automatically.</p>
+      )}
       <div className="row">
         <label>
           Length

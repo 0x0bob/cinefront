@@ -7,6 +7,9 @@ import type { KV } from "./store";
 export type Status = "pending_approval" | "queued" | "generating" | "processing" | "done" | "rejected" | "failed";
 export const STATUSES: Status[] = ["pending_approval", "queued", "generating", "processing", "done", "rejected", "failed"];
 export const LABEL = "180° AI video dome (3DoF)";
+export const PRESETS = ["static", "ride", "glide"] as const;
+export type Preset = (typeof PRESETS)[number];
+export const COMFORT_GLIDE = "Experimental: in a glide scene the camera drifts slowly forward, like walking. It may be uncomfortable for some people in VR; stop if you feel unwell.";
 
 export interface SceneMeta {
   projection: { model: string; fov_deg: number; pitch_deg: number; circle: { cx: number; cy: number; r: number; size: number }; feather: number };
@@ -16,7 +19,7 @@ export type Assets = { dome: string; preview: string; poster: string; proof_shee
 export interface Job {
   id: string;
   prompt: string;
-  preset: "static" | "ride";
+  preset: Preset;
   duration: number;
   resolution: Resolution;
   status: Status;
@@ -64,7 +67,7 @@ export async function spentToday(kv: KV): Promise<number> {
   return (await kv.get<number>(spendKey())) ?? 0;
 }
 
-export async function createJob(kv: KV, input: { prompt: string; preset: "static" | "ride"; duration: number; resolution: Resolution; ipHash: string }): Promise<Job> {
+export async function createJob(kv: KV, input: { prompt: string; preset: Preset; duration: number; resolution: Resolution; ipHash: string }): Promise<Job> {
   const est = estimate(input.duration, input.resolution, cfg().pricePerMtoken);
   const j: Job = {
     id: newId(), prompt: input.prompt, preset: input.preset, duration: input.duration, resolution: input.resolution, status: "pending_approval",
@@ -224,7 +227,7 @@ export const titleOf = (j: Job) => (j.title?.trim() || (j.prompt.length > 70 ? j
 /** public scene JSON: an ALLOWLIST. No cost, tokens, seed, task id, worker, ip hash, history. */
 export function publicScene(j: Job) {
   return {
-    id: j.id, title: titleOf(j), prompt: j.prompt, created_utc: j.created_utc, published_utc: j.published_utc ?? null, label: LABEL, projection: j.scene!.projection, video: j.scene!.video,
+    id: j.id, title: titleOf(j), prompt: j.prompt, created_utc: j.created_utc, published_utc: j.published_utc ?? null, label: j.preset === "glide" ? LABEL + " (glide, experimental)" : LABEL, ...(j.preset === "glide" ? { comfort_notice: COMFORT_GLIDE } : {}), projection: j.scene!.projection, video: j.scene!.video,
     files: { dome: j.assets!.dome, preview: j.assets!.preview, poster: j.assets!.poster, ...(j.assets!.proof_sheet ? { proof_sheet: j.assets!.proof_sheet } : {}) },
   };
 }

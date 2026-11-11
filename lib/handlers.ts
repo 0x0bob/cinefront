@@ -6,8 +6,8 @@ import { acceptableAssetUrl, ALLOWED, LOCAL_ROOT, makeUploadTarget, verifyLocalS
 import { cfg, missing } from "./config";
 import { DURATIONS, RESOLUTIONS, type Resolution } from "./cost";
 import { checkPrompt } from "./filter";
-import { clientIp, fail, ipHash, json, readJson, sameOrigin } from "./http";
-import { adminView, allJobs, approve, claim, createJob, getJob, isPublished, jobStatusView, publicScene, reject, setPublic, spentToday, sweepStale, workerUpdate, STATUSES } from "./jobs";
+import { clientIp, fail, ipHash, json, readJson, safe, sameOrigin } from "./http";
+import { adminView, allJobs, approve, claim, createJob, getJob, isPublished, jobStatusView, PRESETS, publicScene, reject, setPublic, spentToday, sweepStale, workerUpdate, STATUSES, type Preset } from "./jobs";
 import { rateLimit } from "./rate";
 import { getKV } from "./store";
 
@@ -15,7 +15,7 @@ const notConfigured = (what: string[]) => fail(503, "the server is not configure
 const MAX_PENDING = 25;
 
 // ---------------------------------------------------------------- public: request a scene
-export async function submitRequest(req: Request): Promise<Response> {
+async function submitRequestRaw(req: Request): Promise<Response> {
   const bad = missing(["requestPasscode", "ipSalt"]);
   if (bad.length) return notConfigured(bad);
   if (!sameOrigin(req)) return fail(403, "bad origin");
@@ -34,8 +34,8 @@ export async function submitRequest(req: Request): Promise<Response> {
   }
   const chk = checkPrompt(body.prompt);
   if (!chk.ok) return fail(400, chk.error);
-  const preset = body.preset === "ride" ? "ride" : body.preset === "static" || body.preset === undefined ? "static" : null;
-  if (!preset) return fail(400, "preset must be 'static' or 'ride'");
+  const preset = body.preset === undefined ? "static" : (PRESETS as readonly unknown[]).includes(body.preset) ? (body.preset as Preset) : null;
+  if (!preset) return fail(400, `preset must be one of ${PRESETS.join(", ")}`);
   const duration = body.duration === undefined ? 5 : Number(body.duration);
   const resolution = (body.resolution === undefined ? "720p" : body.resolution) as Resolution;
   if (!(DURATIONS as readonly number[]).includes(duration)) return fail(400, `duration must be one of ${DURATIONS.join(", ")}`);
@@ -46,23 +46,23 @@ export async function submitRequest(req: Request): Promise<Response> {
   return json({ id: j.id, status: j.status, needs_approval: true, estimated_cost_usd: j.estimated_cost_usd, estimated_tokens: j.estimated_tokens, url: `/jobs/${j.id}` }, 201);
 }
 
-export async function jobStatus(_req: Request, id: string): Promise<Response> {
+async function jobStatusRaw(_req: Request, id: string): Promise<Response> {
   const j = await getJob(getKV(), id);
   return j ? json(jobStatusView(j)) : fail(404, "not found");
 }
 
 // ---------------------------------------------------------------- public: gallery data (published scenes only; allowlisted fields)
-export async function publicList(): Promise<Response> {
+async function publicListRaw(): Promise<Response> {
   const jobs = (await allJobs(getKV())).filter(isPublished).sort((a, b) => (b.published_utc ?? "").localeCompare(a.published_utc ?? ""));
   return json(jobs.map(publicScene), 200, { "cache-control": "public, max-age=30" });
 }
-export async function publicDetail(_req: Request, id: string): Promise<Response> {
+async function publicDetailRaw(_req: Request, id: string): Promise<Response> {
   const j = await getJob(getKV(), id);
   return isPublished(j) ? json(publicScene(j), 200, { "cache-control": "public, max-age=30" }) : fail(404, "not found");       // private, unknown and malformed ids: the same 404
 }
 
 // ---------------------------------------------------------------- admin
-export async function adminLogin(req: Request): Promise<Response> {
+async function adminLoginRaw(req: Request): Promise<Response> {
   const bad = missing(["adminPassword", "sessionSecret", "ipSalt"]);
   if (bad.length) return notConfigured(bad);
   if (!sameOrigin(req)) return fail(403, "bad origin");
@@ -75,11 +75,11 @@ export async function adminLogin(req: Request): Promise<Response> {
   if (!safeEqual(pw, cfg().adminPassword)) return fail(401, "wrong password");
   return json({ ok: true }, 200, { "set-cookie": adminCookie(isSecure(req)) });
 }
-export async function adminLogout(req: Request): Promise<Response> {
+async function adminLogoutRaw(req: Request): Promise<Response> {
   return json({ ok: true }, 200, { "set-cookie": clearCookie(isSecure(req)) });
 }
 
-export async function adminList(req: Request): Promise<Response> {
+async function adminListRaw(req: Request): Promise<Response> {
   if (!adminAuthorized(req)) return fail(401, "login required");
   const kv = getKV();
   await sweepStale(kv);
@@ -88,7 +88,7 @@ export async function adminList(req: Request): Promise<Response> {
   return json({ jobs: jobs.map(adminView), spend: { today_usd: await spentToday(kv), daily_cap_usd: c.dailyCapUsd, max_cost_per_scene_usd: c.maxCostPerSceneUsd } });
 }
 
-export async function adminAction(req: Request, id: string, action: string): Promise<Response> {
+async function adminActionRaw(req: Request, id: string, action: string): Promise<Response> {
   if (!adminAuthorized(req)) return fail(401, "login required");
   if (!sameOrigin(req)) return fail(403, "bad origin");
   const kv = getKV();
@@ -110,7 +110,7 @@ function workerGate(req: Request): Response | null {
   return workerAuthorized(req) ? null : fail(401, "bad worker secret");
 }
 
-export async function workerClaim(req: Request): Promise<Response> {
+async function workerClaimRaw(req: Request): Promise<Response> {
   const g = workerGate(req);
   if (g) return g;
   const r = await readJson(req, 1024);
@@ -119,7 +119,7 @@ export async function workerClaim(req: Request): Promise<Response> {
   return json(out);
 }
 
-export async function workerUpdateRoute(req: Request): Promise<Response> {
+async function workerUpdateRouteRaw(req: Request): Promise<Response> {
   const g = workerGate(req);
   if (g) return g;
   const r = await readJson(req, 16 * 1024);
@@ -128,7 +128,7 @@ export async function workerUpdateRoute(req: Request): Promise<Response> {
   return res.ok ? json({ ok: true, status: res.value.status }) : fail(res.status, res.error);
 }
 
-export async function workerUploadUrl(req: Request): Promise<Response> {
+async function workerUploadUrlRaw(req: Request): Promise<Response> {
   const g = workerGate(req);
   if (g) return g;
   const r = await readJson(req, 2048);
@@ -150,7 +150,7 @@ export async function workerUploadUrl(req: Request): Promise<Response> {
 }
 
 // ---------------------------------------------------------------- local blob driver (dev/tests only): signed PUT, public GET with Range
-export async function blobPut(req: Request, parts: string[]): Promise<Response> {
+async function blobPutRaw(req: Request, parts: string[]): Promise<Response> {
   if (cfg().blobDriver !== "local") return fail(404, "not found");
   const pathname = parts.join("/");
   const u = new URL(req.url);
@@ -163,7 +163,7 @@ export async function blobPut(req: Request, parts: string[]): Promise<Response> 
   return json({ url: `${(cfg().baseUrl || u.origin).replace(/\/$/, "")}/api/blob/${pathname}`, pathname, contentType: ALLOWED[m[2]].type });
 }
 
-export async function blobGet(req: Request, parts: string[]): Promise<Response> {
+async function blobGetRaw(req: Request, parts: string[]): Promise<Response> {
   if (cfg().blobDriver !== "local") return fail(404, "not found");
   const pathname = parts.join("/");
   const m = /^scenes\/([0-9a-f]{24})\/([a-z0-9_.]+)$/.exec(pathname);
@@ -195,3 +195,18 @@ export async function blobGet(req: Request, parts: string[]): Promise<Response> 
 }
 
 export { STATUSES };
+
+// every handler is wrapped: a missing or unreachable store answers 503 with a clear message instead of a bare 500
+export const submitRequest = safe(submitRequestRaw);
+export const jobStatus = safe(jobStatusRaw);
+export const publicList = safe(publicListRaw);
+export const publicDetail = safe(publicDetailRaw);
+export const adminLogin = safe(adminLoginRaw);
+export const adminLogout = safe(adminLogoutRaw);
+export const adminList = safe(adminListRaw);
+export const adminAction = safe(adminActionRaw);
+export const workerClaim = safe(workerClaimRaw);
+export const workerUpdateRoute = safe(workerUpdateRouteRaw);
+export const workerUploadUrl = safe(workerUploadUrlRaw);
+export const blobPut = safe(blobPutRaw);
+export const blobGet = safe(blobGetRaw);

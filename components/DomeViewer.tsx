@@ -8,7 +8,7 @@ import { VRButton } from "three/examples/jsm/webxr/VRButton.js";
 import { DOME_FRAG, DOME_VERT, SPHERE_RADIUS, domeUniforms } from "@/lib/domeShader";
 
 export type ViewerScene = {
-  id: string; title: string; prompt: string; label: string;
+  id: string; title: string; prompt: string; label: string; comfort_notice?: string;
   projection: { model: string; fov_deg: number; pitch_deg: number; circle: { cx: number; cy: number; r: number; size: number }; feather: number };
   video: { width: number; height: number; fps: number; duration_s: number; has_audio: boolean };
   files: { dome: string; preview: string; poster: string; proof_sheet?: string };
@@ -250,7 +250,8 @@ export default function DomeViewer({ scene }: { scene: ViewerScene }) {
         <Link className="back" href="/gallery" aria-label="Back to the gallery">← Gallery</Link>
         <div className="vinfo">
           <h1>{scene.title}</h1>
-          <p className="label">180° AI video dome — generated from a text prompt, not a 3D reconstruction</p>
+          <p className="label">180° AI video dome — generated from a text prompt, not a 3D reconstruction{scene.comfort_notice ? " (glide, experimental)" : ""}</p>
+          {scene.comfort_notice && <p className="comfort" id="comfort">{scene.comfort_notice}</p>}
           <p className="prompt">{scene.prompt}</p>
           <p className="hint">Drag to look around · wheel or pinch to zoom{scene.files.proof_sheet ? <> · <a href={scene.files.proof_sheet} target="_blank" rel="noopener">proof sheet</a></> : null}</p>
         </div>
