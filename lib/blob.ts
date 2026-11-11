@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { cfg } from "./config";
+import { envEnding } from "./store";
 
 export const ALLOWED: Record<string, { type: string; maxBytes: number }> = {
   "dome.mp4": { type: "video/mp4", maxBytes: 60 * 1024 * 1024 },
@@ -30,7 +31,7 @@ export async function makeUploadTarget(id: string, filename: string, origin: str
     const base = (cfg().baseUrl || origin).replace(/\/$/, "");
     return { method: "PUT", url: `${base}/api/blob/${pathname}?exp=${exp}&sig=${sig(pathname, exp)}`, headers: { "content-type": spec.type }, pathname, expires_at: exp };
   }
-  const rw = process.env.BLOB_READ_WRITE_TOKEN;
+  const rw = envEnding("BLOB_READ_WRITE_TOKEN");
   if (!rw) throw new Error("BLOB_READ_WRITE_TOKEN is not set (connect a Vercel Blob store to the project)");
   // a short-lived client token for exactly this pathname/type/size, then the Blob REST call that the SDK's client put() makes (same endpoint and headers: @vercel/blob 2.x, API version 13)
   const { generateClientTokenFromReadWriteToken } = await import("@vercel/blob/client");

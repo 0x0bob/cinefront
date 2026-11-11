@@ -112,14 +112,25 @@ export class UpstashKV implements KV {
 
 const g = globalThis as unknown as { __kv?: KV };
 
+/** value of the env var named exactly one of `names`, else of the first var whose name ends with `_<name>` (a prefixed integration) */
+export function envEnding(...names: string[]): string | undefined {
+  for (const n of names) if (process.env[n]) return process.env[n];
+  for (const n of names) {
+    const k = Object.keys(process.env).sort().find((key) => key.endsWith("_" + n) && process.env[key]);
+    if (k) return process.env[k];
+  }
+  return undefined;
+}
+
 export function getKV(): KV {
   if (g.__kv) return g.__kv;
   const c = cfg();
   if (c.storeDriver === "memory") g.__kv = new MemoryKV();
   else if (c.storeDriver === "local") g.__kv = new FileKV(path.join(process.cwd(), ".local-store", "kv.json"));
   else {
-    const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+    // the Marketplace integration may add a prefix to the names (e.g. STORAGE_KV_REST_API_URL): accept any name that ends with the standard one
+    const url = envEnding("KV_REST_API_URL", "UPSTASH_REDIS_REST_URL");
+    const token = envEnding("KV_REST_API_TOKEN", "UPSTASH_REDIS_REST_TOKEN");
     if (!url || !token) throw new Error("no store configured: connect Upstash Redis (KV_REST_API_URL / KV_REST_API_TOKEN) or set STORE_DRIVER=local for development");
     g.__kv = new UpstashKV(new Redis({ url, token }));
   }
