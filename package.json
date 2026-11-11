@@ -1,0 +1,29 @@
+{
+  "name": "sceneshift-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SceneShift: text -> 180° AI video dome (frontend on Vercel; the PC worker does the generation)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.41.0",
+    "@vercel/blob": "^2.9.0",
+    "next": "15.5.29",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "three": "0.160.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@types/three": "0.160.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.0"
+  }
+}
