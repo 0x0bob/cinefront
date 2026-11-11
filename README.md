@@ -7,3 +7,5 @@ Deploy on Vercel with the repo root as the project root. Needs Upstash Redis (`K
 Local: `npm install`, copy `.env.example` to `.env.local` (set `STORE_DRIVER=local`, `BLOB_DRIVER=local`), `npm run dev`, `npm test`.
 
 The generation worker (`vercel_worker.py`) lives in the main SceneShift repo and polls this site; nothing calls the PC.
+
+ 
