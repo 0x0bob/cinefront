@@ -131,7 +131,11 @@ export function getKV(): KV {
     // the Marketplace integration may add a prefix to the names (e.g. STORAGE_KV_REST_API_URL): accept any name that ends with the standard one
     const url = envEnding("KV_REST_API_URL", "UPSTASH_REDIS_REST_URL");
     const token = envEnding("KV_REST_API_TOKEN", "UPSTASH_REDIS_REST_TOKEN");
-    if (!url || !token) throw new Error("no store configured: connect Upstash Redis (KV_REST_API_URL / KV_REST_API_TOKEN) or set STORE_DRIVER=local for development");
+    if (!url || !token) {
+      // names only (never values) of the storage-related variables this deployment sees, plus where it runs: enough to debug a missing connection from outside
+      const seen = Object.keys(process.env).filter((k) => /KV|REDIS|UPSTASH|BLOB/.test(k)).sort().join(",") || "none";
+      throw new Error(`no store configured: connect Upstash Redis (KV_REST_API_URL / KV_REST_API_TOKEN) or set STORE_DRIVER=local for development [env=${process.env.VERCEL_ENV ?? "?"} commit=${(process.env.VERCEL_GIT_COMMIT_SHA ?? "?").slice(0, 7)} sees: ${seen}]`);
+    }
     g.__kv = new UpstashKV(new Redis({ url, token }));
   }
   return g.__kv;

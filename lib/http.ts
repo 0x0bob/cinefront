@@ -50,7 +50,7 @@ export function safe<A extends unknown[]>(fn: (...a: A) => Promise<Response>): (
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error("handler error:", msg);
-      if (msg.startsWith("no store configured")) return fail(503, "the store is not connected yet: the site owner must connect Upstash Redis (KV_REST_API_URL / KV_REST_API_TOKEN)");
+      if (msg.startsWith("no store configured")) return fail(503, "the store is not connected yet: the site owner must connect Upstash Redis (KV_REST_API_URL / KV_REST_API_TOKEN)" + (msg.match(/\[.*\]$/)?.[0] ? " " + msg.match(/\[.*\]$/)![0] : ""));
       return fail(500, "internal error");
     }
   };
