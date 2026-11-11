@@ -7,7 +7,7 @@ import { cfg, missing } from "./config";
 import { DURATIONS, RESOLUTIONS, type Resolution } from "./cost";
 import { checkPrompt } from "./filter";
 import { clientIp, fail, ipHash, json, readJson, safe, sameOrigin } from "./http";
-import { adminView, allJobs, approve, claim, createJob, getJob, isPublished, jobStatusView, PRESETS, publicScene, reject, setPublic, spentToday, sweepStale, workerUpdate, STATUSES, type Preset } from "./jobs";
+import { adminView, allJobs, approve, claim, createJob, getJob, isPublished, jobStatusView, PRESETS, publicScene, reject, release, setPublic, spentToday, sweepStale, workerUpdate, STATUSES, type Preset } from "./jobs";
 import { rateLimit } from "./rate";
 import { getKV } from "./store";
 
@@ -97,6 +97,7 @@ async function adminActionRaw(req: Request, id: string, action: string): Promise
   let res;
   if (action === "approve") res = await approve(kv, id);
   else if (action === "reject") res = await reject(kv, id, typeof r.body.reason === "string" ? r.body.reason : undefined);
+  else if (action === "release") res = await release(kv, id);
   else if (action === "publish") res = await setPublic(kv, id, true, typeof r.body.title === "string" ? r.body.title : undefined);
   else if (action === "unpublish") res = await setPublic(kv, id, false);
   else return fail(404, "unknown action");

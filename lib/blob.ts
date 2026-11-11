@@ -31,7 +31,7 @@ export async function makeUploadTarget(id: string, filename: string, origin: str
     const base = (cfg().baseUrl || origin).replace(/\/$/, "");
     return { method: "PUT", url: `${base}/api/blob/${pathname}?exp=${exp}&sig=${sig(pathname, exp)}`, headers: { "content-type": spec.type }, pathname, expires_at: exp };
   }
-  const rw = envEnding("BLOB_READ_WRITE_TOKEN");
+  const rw = envEnding("BLOB_READ_WRITE_TOKEN", "READ_WRITE_TOKEN");
   if (!rw) throw new Error("BLOB_READ_WRITE_TOKEN is not set (connect a Vercel Blob store to the project)");
   // a short-lived client token for exactly this pathname/type/size, then the Blob REST call that the SDK's client put() makes (same endpoint and headers: @vercel/blob 2.x, API version 13)
   const { generateClientTokenFromReadWriteToken } = await import("@vercel/blob/client");

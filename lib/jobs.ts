@@ -50,7 +50,7 @@ const now = () => new Date().toISOString();
 export async function getJob(kv: KV, id: string): Promise<Job | null> {
   return /^[0-9a-f]{24}$/.test(id) ? kv.get<Job>(jobKey(id)) : null;
 }
-async function saveJob(kv: KV, j: Job) {
+export async function saveJob(kv: KV, j: Job) {
   j.updated_utc = now();
   await kv.set(jobKey(j.id), j);
 }
@@ -94,6 +94,19 @@ export async function approve(kv: KV, id: string): Promise<Result<Job>> {
   j.status = "queued";
   j.approved_utc = now();
   j.private = { ...j.private, reserved_usd: j.estimated_cost_usd };
+  await saveJob(kv, j);
+  return { ok: true, value: j };
+}
+
+/** admin: a failed/rejected job whose PC never reported a cost still holds its reservation; give it back (only when nothing was spent: the admin checks the Seedance console first) */
+export async function release(kv: KV, id: string): Promise<Result<Job>> {
+  const j = await getJob(kv, id);
+  if (!j) return { ok: false, status: 404, error: "no such job" };
+  if (j.status !== "failed" && j.status !== "rejected") return { ok: false, status: 409, error: `job is '${j.status}'` };
+  const held = j.private?.reserved_usd;
+  if (!held || j.private?.actual_cost_usd !== undefined) return { ok: false, status: 409, error: "no unsettled reservation on this job" };
+  await kv.incrByFloat(spendKey(), -held, 3 * 86400);
+  j.private = { ...j.private, actual_cost_usd: 0 };
   await saveJob(kv, j);
   return { ok: true, value: j };
 }

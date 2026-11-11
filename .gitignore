@@ -9,3 +9,6 @@ node_modules/
 next-env.d.ts
 *.tsbuildinfo
 test-results/
+
+.vercel
+.env*
